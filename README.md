@@ -56,6 +56,8 @@ kivyx_ota/
 
 ## 🚀 Quick Start
 
+> **New to the project?** Start with [SETUP.md](./SETUP.md) for complete step-by-step setup instructions.
+
 ### 1. Install Dependencies
 
 ```bash
