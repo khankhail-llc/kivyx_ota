@@ -14,7 +14,17 @@ export type OtaState = {
 };
 
 export async function getState(): Promise<OtaState> {
-  try { return JSON.parse(await RNFS.readFile(STATE, "utf8")); } catch { return { currentVersionCode: 0 }; }
+  try {
+    const content = await RNFS.readFile(STATE, "utf8");
+    const parsed = JSON.parse(content);
+    // Validate state structure
+    if (typeof parsed.currentVersionCode !== "number" || parsed.currentVersionCode < 0) {
+      return { currentVersionCode: 0 };
+    }
+    return parsed;
+  } catch {
+    return { currentVersionCode: 0 };
+  }
 }
 export async function setState(s: OtaState) {
   await RNFS.mkdir(BASE);

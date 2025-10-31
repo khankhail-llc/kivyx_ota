@@ -35,7 +35,8 @@ export const handler = async (event: any) => {
         ScanIndexForward: true
       }));
       const events = (tele.Items || []).map(unmarshall);
-      const total = events.length || 1;
+      const total = events.length;
+      if (total === 0) return true; // No data = healthy
       const crashes = events.filter((e: any) => e.event === "crash").length;
       return (crashes / total) * 100 < CRASH_THRESHOLD;
     } catch { return true; }

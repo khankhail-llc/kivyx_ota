@@ -5,6 +5,7 @@ import { b64sha256 } from "./hash";
 import { verifySignedJson } from "./verify";
 import { getState, setState, getActiveDir } from "./storage";
 import { unzipTo } from "./zip";
+import { applyDelta } from "./delta";
 
 export type OtaParams = {
   app: string;
@@ -86,11 +87,67 @@ export async function checkAndApply(params: OtaParams) {
 
   const tmpDir = `${RNFS.CachesDirectoryPath}/kivyx_ota`;
   await RNFS.mkdir(tmpDir);
-  const zipPath = `${tmpDir}/bundle.zip`;
-  const dl = await RNFS.downloadFile({ fromUrl: manifest.artifact.url, toFile: zipPath });
-  const { statusCode } = await dl.promise;
-  if (statusCode !== 200) throw new Error("Download failed");
+  let zipPath = `${tmpDir}/bundle.zip`;
+  
+  // Get fresh state for delta check
+  const currentState = await getState();
+  
+  // Delta update path: if delta exists and we have base version, use delta
+  if (manifest.delta && manifest.delta.base_version_code && currentState.currentVersionCode === manifest.delta.base_version_code) {
+    try {
+      const basePath = `${getActiveDir(currentState.currentVersionCode)}/bundle.zip`;
+      let baseExists = false;
+      try { baseExists = await RNFS.exists(basePath); } catch {}
+      if (baseExists) {
+        const deltaPath = `${tmpDir}/delta.patch`;
+        const deltaDl = await RNFS.downloadFile({ fromUrl: manifest.delta.url, toFile: deltaPath });
+        const { statusCode: deltaStatus } = await deltaDl.promise;
+        if (deltaStatus === 200) {
+          // Verify delta hash
+          const deltaBase64 = await RNFS.readFile(deltaPath, "base64");
+          const deltaOk = b64sha256(Buffer.from(deltaBase64, "base64")) === manifest.delta.sha256;
+          if (deltaOk) {
+            await applyDelta(basePath, deltaPath, zipPath);
+            // Verify final result matches artifact hash
+            const finalBase64 = await RNFS.readFile(zipPath, "base64");
+            const finalOk = b64sha256(Buffer.from(finalBase64, "base64")) === manifest.artifact.sha256;
+            if (finalOk) {
+              console.log("Delta applied successfully");
+            } else {
+              console.warn("Delta result hash mismatch, falling back to full download");
+              const dl = await RNFS.downloadFile({ fromUrl: manifest.artifact.url, toFile: zipPath });
+              const { statusCode } = await dl.promise;
+              if (statusCode !== 200) throw new Error("Download failed");
+            }
+          } else {
+            console.warn("Delta hash mismatch, falling back to full download");
+            const dl = await RNFS.downloadFile({ fromUrl: manifest.artifact.url, toFile: zipPath });
+            const { statusCode } = await dl.promise;
+            if (statusCode !== 200) throw new Error("Download failed");
+          }
+        } else {
+          throw new Error("Delta download failed");
+        }
+      } else {
+        // Base not available, download full
+        const dl = await RNFS.downloadFile({ fromUrl: manifest.artifact.url, toFile: zipPath });
+        const { statusCode } = await dl.promise;
+        if (statusCode !== 200) throw new Error("Download failed");
+      }
+    } catch (e) {
+      console.warn("Delta apply failed, falling back to full:", e);
+      const dl = await RNFS.downloadFile({ fromUrl: manifest.artifact.url, toFile: zipPath });
+      const { statusCode } = await dl.promise;
+      if (statusCode !== 200) throw new Error("Download failed");
+    }
+  } else {
+    // Full download path
+    const dl = await RNFS.downloadFile({ fromUrl: manifest.artifact.url, toFile: zipPath });
+    const { statusCode } = await dl.promise;
+    if (statusCode !== 200) throw new Error("Download failed");
+  }
 
+  // Verify final artifact hash
   const fileBase64 = await RNFS.readFile(zipPath, "base64");
   const ok = b64sha256(Buffer.from(fileBase64, "base64")) === manifest.artifact.sha256;
   if (!ok) throw new Error("Artifact hash mismatch");
@@ -98,8 +155,9 @@ export async function checkAndApply(params: OtaParams) {
   const dest = getActiveDir(manifest.version_code);
   await unzipTo(zipPath, dest);
   // crash-safe: mark pending and remember last good before switching
-  const lastGood = st.currentVersionCode || 0;
-  await setState({ currentVersionCode: manifest.version_code, lastGoodVersionCode: lastGood, pendingVersionCode: manifest.version_code, appliedAt: new Date().toISOString(), pendingTimeoutMs: st.pendingTimeoutMs || 600000 });
+  const finalState = await getState(); // Get latest state after all operations
+  const lastGood = finalState.currentVersionCode || 0;
+  await setState({ currentVersionCode: manifest.version_code, lastGoodVersionCode: lastGood, pendingVersionCode: manifest.version_code, appliedAt: new Date().toISOString(), pendingTimeoutMs: finalState.pendingTimeoutMs || 600000 });
 
   // Verify assets integrity if provided
   if (Array.isArray(manifest.assets) && manifest.assets.length > 0) {
