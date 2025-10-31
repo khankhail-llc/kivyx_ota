@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Kivyx Channel Index v1",
+  "type": "object",
+  "required": ["schema", "app", "platform", "channel", "releases", "key_id", "signature"],
+  "properties": {
+    "schema": { "const": "kivyx.channel.v1" },
+    "app": { "type": "string" },
+    "platform": { "enum": ["ios", "android"] },
+    "channel": { "type": "string" },
+    "created_at": { "type": "string" },
+    "releases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["version", "version_code", "binary_version", "rollout", "manifest_url"],
+        "properties": {
+          "version": { "type": "string" },
+          "version_code": { "type": "integer" },
+          "binary_version": { "type": "string" },
+          "runtime_version": { "type": "string" },
+          "rollout": { "type": "number", "minimum": 0, "maximum": 100 },
+          "targeting": { "type": "object" },
+          "mandatory": { "type": "boolean" },
+          "manifest_url": { "type": "string" }
+        }
+      }
+    },
+    "keys": { "type": "array", "items": { "type": "string" } },
+    "key_id": { "type": "string" },
+    "signature": { "type": "string" }
+  }
+}
+
+

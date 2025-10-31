@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Kivyx Manifest v1",
+  "type": "object",
+  "required": ["schema","app","platform","channel","binary_version","version","version_code","artifact","key_id","signature"],
+  "properties": {
+    "schema": { "const": "kivyx.manifest.v1" },
+    "app": { "type": "string" },
+    "platform": { "enum": ["ios","android"] },
+    "channel": { "type": "string" },
+    "binary_version": { "type": "string" },
+    "version": { "type": "string" },
+    "version_code": { "type": "integer" },
+    "created_at": { "type": "string" },
+    "runtime_version": { "type": "string" },
+    "artifact": {
+      "type": "object",
+      "required": ["url","size","sha256"],
+      "properties": {
+        "url": { "type": "string" },
+        "url_by_hash": { "type": "string" },
+        "size": { "type": "integer" },
+        "sha256": { "type": "string" },
+        "encoding": { "type": "string" }
+      }
+    },
+    "assets": { 
+      "type": "array", 
+      "items": { 
+        "type": "object",
+        "required": ["path","sha256","size"],
+        "properties": {
+          "path": { "type": "string" },
+          "sha256": { "type": "string" },
+          "size": { "type": "integer" }
+        }
+      } 
+    },
+    "delta": { "type": "object" },
+    "mandatory": { "type": "boolean" },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "attestation_url": { "type": "string" },
+        "transparency_log_id": { "type": "string" }
+      }
+    },
+    "cose": {
+      "type": "object",
+      "properties": {
+        "alg": { "type": "string" },
+        "kid": { "type": "string" },
+        "sign1": { "type": "string" }
+      }
+    },
+    "key_id": { "type": "string" },
+    "signature": { "type": "string" }
+  }
+}
+
+

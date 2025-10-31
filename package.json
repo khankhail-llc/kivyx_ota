@@ -1,0 +1,20 @@
+{
+  "name": "kivyx-ota",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r build",
+    "lint": "echo add eslint if needed",
+    "publish:ios": "pnpm --filter @kivyx-ota/publisher start com.kivyx.app ios Production 1.0.0 1 index.ios.js",
+    "publish:android": "pnpm --filter @kivyx-ota/publisher start com.kivyx.app android Production 1.0.0 1 index.android.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  },
+  "packageManager": "pnpm@9.0.0"
+}
+
+
